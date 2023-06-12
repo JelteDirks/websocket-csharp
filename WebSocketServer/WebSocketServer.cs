@@ -5,7 +5,6 @@ namespace WebSocket
 {
     public class WebSocketServer
     {
-        private string welcome_message = "Welcome... to Locus!";
         private HttpListener http_listener;
         private List<Client> clients;
 
@@ -39,7 +38,7 @@ namespace WebSocket
                     // Add your own logic here before accepting the connection
                     var wsContext = await context.AcceptWebSocketAsync(null);
                     var webSocket = wsContext.WebSocket;
-                    var client = new Client(webSocket, true);
+                    var client = new Client(webSocket);
                     clients.Add(client);
                     _ = HandleConnectionAsync(webSocket);
                 }
@@ -54,9 +53,6 @@ namespace WebSocket
         private async Task HandleConnectionAsync(System.Net.WebSockets.WebSocket webSocket)
         {
             var buffer = new byte[1024 * 4];
-            // Send welcome message to client
-            await webSocket.SendAsync(new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(welcome_message)), WebSocketMessageType.Text, true, CancellationToken.None);
-
             var client = clients.Find(c => c.WebSocket == webSocket);
 
             while (webSocket.State == WebSocketState.Open)
@@ -65,21 +61,26 @@ namespace WebSocket
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
-                    return;
+                    break;
                 }
                 else
                 {
                     if (client!.Validated == false)
                     {
+                        Console.WriteLine("validating client");
                         client.Validated = true;
                         // Perform session ID validation here
                         // ...
+                        Console.WriteLine("client validated");
                     }
 
                     await webSocket.SendAsync(new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes("ooh that tickles")),
                             WebSocketMessageType.Text, true, CancellationToken.None);
                 }
             }
+
+            Console.WriteLine("client removed");
+
             clients.Remove(client!);
         }
     }
@@ -89,10 +90,10 @@ namespace WebSocket
         public System.Net.WebSockets.WebSocket WebSocket;
         public bool Validated;
 
-        public Client(System.Net.WebSockets.WebSocket ws, bool b)
+        public Client(System.Net.WebSockets.WebSocket ws)
         {
             WebSocket = ws;
-            Validated = b;
+            Validated = false;
         }
     }
 
