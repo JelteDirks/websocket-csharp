@@ -5,7 +5,7 @@
 public partial class Program
 {
 
-    static WebSocketServer ws = new WebSocketServer("http://localhost:3000/");
+    static WebSocketServer ws = new WebSocketServer("http://localhost:3000/", new Api.ApiManager());
 
     public static void Main(string[] args)
     {

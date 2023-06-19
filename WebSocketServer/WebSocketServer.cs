@@ -7,22 +7,24 @@ namespace WebSocket
     {
         private HttpListener http_listener;
         private List<Client> clients;
+        private Api.ApiManager api_manager;
 
-        public WebSocketServer(string uriPrefix)
+        public WebSocketServer(string uri, Api.ApiManager api_manager)
         {
             http_listener = new HttpListener();
-            http_listener.Prefixes.Add(uriPrefix);
+            http_listener.Prefixes.Add(uri);
             clients = new List<Client>();
+            this.api_manager = api_manager;
         }
 
         public async Task BroadcastAsync(string message)
         {
-            var buffer = System.Text.Encoding.UTF8.GetBytes(message);
+            var buffer = new ArraySegment<byte>(System.Text.Encoding.UTF8.GetBytes(message));
             foreach (var client in clients)
             {
                 if (client.WebSocket.State == WebSocketState.Open)
                 {
-                    await client.WebSocket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+                    await client.WebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, CancellationToken.None);
                 }
             }
         }
@@ -35,7 +37,6 @@ namespace WebSocket
                 var context = await http_listener.GetContextAsync();
                 if (context.Request.IsWebSocketRequest)
                 {
-                    // Add your own logic here before accepting the connection
                     var wsContext = await context.AcceptWebSocketAsync(null);
                     var webSocket = wsContext.WebSocket;
                     var client = new Client(webSocket);
@@ -52,12 +53,12 @@ namespace WebSocket
 
         private async Task HandleConnectionAsync(System.Net.WebSockets.WebSocket webSocket)
         {
-            var buffer = new byte[1024 * 4];
+            var buffer = new ArraySegment<byte>(new byte[1024 * 4]);
             var client = clients.Find(c => c.WebSocket == webSocket);
 
             while (webSocket.State == WebSocketState.Open)
             {
-                var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                var result = await webSocket.ReceiveAsync(buffer, CancellationToken.None);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
                     await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, CancellationToken.None);
